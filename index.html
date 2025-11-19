@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gören Bot AI v5 - Pro Face</title>
+    <title>Gören Bot AI v6 - Iron Man</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- TensorFlow.js Çekirdek -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     
     <!-- Modeller -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script> <!-- Nesneler için -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script> <!-- Yüz Analizi için -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script> 
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
 
     <style>
         body {
@@ -25,10 +25,11 @@
         }
 
         #camContainer { position: relative; width: 100vw; height: 100vh; }
+        /* Video ve Canvas üst üste tam oturmalı */
         video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; }
 
-        /* Arayüz Katmanları */
+        /* HUD Katmanları */
         .hud-overlay {
             position: absolute; z-index: 10; pointer-events: none; inset: 0;
             border: 2px solid rgba(0, 255, 0, 0.3);
@@ -42,9 +43,19 @@
         }
         @keyframes scan { 0% { top: 0%; opacity: 0; } 50% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
 
+        /* Kamera Çevirme Butonu (YENİ) */
+        #switchCamBtn {
+            position: absolute; top: 20px; right: 20px; z-index: 40;
+            background: rgba(0, 20, 0, 0.8); color: #0f0; border: 1px solid #0f0;
+            width: 44px; height: 44px; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; cursor: pointer;
+            box-shadow: 0 0 15px #0f0; transition: transform 0.2s;
+        }
+        #switchCamBtn:active { transform: scale(0.9); }
+
         /* Mod Seçici */
         .mode-selector {
-            position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+            position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
             z-index: 30; display: flex; gap: 8px; background: rgba(0, 0, 0, 0.7);
             padding: 5px; border-radius: 20px; border: 1px solid #333;
             white-space: nowrap; overflow-x: auto; max-width: 90%;
@@ -57,24 +68,22 @@
         }
         .mode-btn.active { background: rgba(0, 255, 0, 0.3); border-color: #0f0; box-shadow: 0 0 10px #0f0; }
 
-        /* Mod Renkleri */
+        /* Renk Temaları */
         .crypto-hud { border-color: gold; color: gold; } .crypto-hud .scan-line { background: gold; }
-        .emotion-hud { border-color: red; color: red; } .emotion-hud .scan-line { background: red; }
-        .road-hud { border-color: cyan; color: cyan; } .road-hud .scan-line { display: none; }
+        .emotion-hud { border-color: cyan; color: cyan; } .emotion-hud .scan-line { background: cyan; }
+        .road-hud { border-color: red; color: red; } .road-hud .scan-line { display: none; }
         .grain-hud { border-color: magenta; color: magenta; } .grain-hud .scan-line { display: none; }
 
-        /* Özellik Panelleri */
+        /* Paneller */
         #speedometer, #grainControls {
             position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
             z-index: 25; display: none; text-align: center;
         }
-        #speedometer { text-shadow: 0 0 10px cyan; }
-        .speed-val { font-size: 80px; font-weight: bold; color: cyan; line-height: 1; }
+        .speed-val { font-size: 80px; font-weight: bold; color: red; line-height: 1; text-shadow: 0 0 10px red; }
         
         #grainControls { width: 80%; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 10px; border: 1px solid magenta; }
         input[type=range] { width: 100%; accent-color: magenta; }
 
-        /* Alt Bilgi Paneli */
         .info-panel {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
             background: rgba(0, 20, 0, 0.9); padding: 15px; border: 1px solid #0f0;
@@ -90,20 +99,26 @@
 </head>
 <body>
 
-    <!-- Yükleme Ekranı -->
     <div id="loadingScreen" class="loading-overlay">
         <div class="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4"></div>
         <h1 class="text-xl font-bold text-green-500">SİSTEM BAŞLATILIYOR...</h1>
-        <p class="text-xs text-green-800 mt-2" id="loadingText">Sensörler Devrede</p>
+        <p class="text-xs text-green-800 mt-2" id="loadingText">Kamera Hazırlanıyor</p>
     </div>
 
     <div id="camContainer">
         <video id="video" playsinline muted autoplay></video>
         <canvas id="canvas"></canvas>
         
+        <!-- Kamera Değiştir Butonu -->
+        <button id="switchCamBtn" onclick="switchCamera()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+        </button>
+
         <div class="mode-selector">
             <button onclick="setMode('object')" id="btn-object" class="mode-btn active">NESNE</button>
-            <button onclick="setMode('emotion')" id="btn-emotion" class="mode-btn">YÜZ ANALİZİ</button>
+            <button onclick="setMode('emotion')" id="btn-emotion" class="mode-btn">YÜZ (AR)</button>
             <button onclick="setMode('grain')" id="btn-grain" class="mode-btn">TANE SAYAR</button>
             <button onclick="setMode('road')" id="btn-road" class="mode-btn">YOL (HUD)</button>
             <button onclick="setMode('crypto')" id="btn-crypto" class="mode-btn">KRİPTO</button>
@@ -113,18 +128,15 @@
             <div class="absolute top-4 left-4 text-xs font-bold tracking-widest">SYS: ONLINE</div>
             <div class="scan-line"></div>
             
-            <!-- Hız Göstergesi -->
             <div id="speedometer">
-                <div class="speed-val" id="speedVal">0</div><div class="text-xl">KM/H</div>
+                <div class="speed-val" id="speedVal">0</div><div class="text-xl text-red-500">KM/H</div>
             </div>
 
-            <!-- Tane Ayarları -->
             <div id="grainControls">
                 <div class="text-xs text-white mb-1">HASSASİYET: <span id="threshVal">100</span></div>
                 <input type="range" min="0" max="255" value="100" oninput="updateThreshold(this.value)">
             </div>
 
-            <!-- Nişangah -->
             <div id="crosshair" class="absolute top-1/2 left-1/2 w-24 h-24 border-2 border-white/30 -translate-x-1/2 -translate-y-1/2 rounded-lg transition-all duration-200">
                 <div class="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-white"></div>
                 <div class="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-white"></div>
@@ -140,7 +152,7 @@
     </div>
 
     <script>
-        // --- REFERANSLAR ---
+        // --- AYARLAR & DEĞİŞKENLER ---
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -151,51 +163,78 @@
         const hud = document.getElementById('hud');
         const infoPanel = document.getElementById('infoPanel');
         
-        // Modeller
-        let objectModel = null; // Coco-SSD
-        let faceModel = null;   // Blazeface (Yeni)
-        
-        // Durumlar
+        let objectModel = null;
+        let faceModel = null;
         let currentMode = 'object';
         let threshold = 100;
-        let lastFaceX = 0, lastFaceY = 0;
-        let movementScores = []; // Stres analizi için hareket geçmişi
         
-        const translate = { 'person': 'İnsan', 'car': 'Araba', 'cup': 'Bardak', 'cell phone': 'Telefon', 'laptop': 'PC' };
+        // Kamera Ayarları
+        let facingMode = 'environment'; // Varsayılan: Arka Kamera
+        let stream = null;
+
+        // Yüz Analizi için
+        let lastFaceX = 0, lastFaceY = 0;
+        let movementScores = [];
+
+        const translate = { 'person': 'İnsan', 'car': 'Araba', 'cup': 'Bardak', 'cell phone': 'Telefon', 'laptop': 'PC', 'cat': 'Kedi', 'dog': 'Köpek' };
 
         // --- BAŞLATMA ---
-        async function setupCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' }, audio: false
-                });
-                video.srcObject = stream;
-                return new Promise(resolve => { video.onloadedmetadata = () => { video.play(); resolve(); }});
-            } catch (e) { alert("Kamera izni gerekli Müdürüm!"); }
-        }
-
-        async function main() {
+        async function init() {
             await setupCamera();
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
             
-            loadingText.innerText = "Nesne Modeli Yükleniyor...";
+            loadingText.innerText = "Beyin Yükleniyor (Coco-SSD)...";
             objectModel = await cocoSsd.load();
             
-            loadingText.innerText = "Yüz Modeli Yükleniyor...";
-            faceModel = await blazeface.load(); // Blazeface yüklemesi
+            loadingText.innerText = "Yüz Taraması Yükleniyor (Blazeface)...";
+            faceModel = await blazeface.load();
             
             startGPS();
             loadingScreen.style.display = 'none';
             loop();
         }
 
+        // --- KAMERA YÖNETİMİ (GÜNCELLENDİ) ---
+        async function setupCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: facingMode }, audio: false
+                });
+                video.srcObject = stream;
+                return new Promise(resolve => {
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        resolve();
+                    };
+                });
+            } catch (e) { 
+                alert("Kamera hatası: " + e.message); 
+            }
+        }
+
+        async function switchCamera() {
+            facingMode = facingMode === 'user' ? 'environment' : 'user';
+            loadingScreen.style.display = 'flex';
+            loadingText.innerText = "Kamera Değiştiriliyor...";
+            await setupCamera();
+            loadingScreen.style.display = 'none';
+            
+            // Ön kameraya geçince otomatik YÜZ modunu açalım, havalı olsun
+            if(facingMode === 'user') setMode('emotion');
+        }
+
         // --- ANA DÖNGÜ ---
         async function loop() {
+            // Canvas temizle (Grain hariç)
             if(currentMode !== 'grain') ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // Modları Çalıştır
             if (currentMode === 'object') await runObjectDetection();
-            else if (currentMode === 'emotion') await runFaceAnalysis(); // Güncellendi
+            else if (currentMode === 'emotion') await runFaceAnalysis(); 
             else if (currentMode === 'grain') runGrainCounter();
             else if (currentMode === 'road') await runRoadMode();
             else if (currentMode === 'crypto') runCryptoAnalysis();
@@ -203,9 +242,8 @@
             requestAnimationFrame(loop);
         }
 
-        // --- 1. GELİŞMİŞ YÜZ ANALİZİ (YENİ) ---
+        // --- 1. IRON MAN YÜZ ANALİZİ (SİBER MASKE) ---
         async function runFaceAnalysis() {
-            // Blazeface ile hassas yüz tespiti
             const predictions = await faceModel.estimateFaces(video, false);
 
             if (predictions.length > 0) {
@@ -214,81 +252,101 @@
                 const end = face.bottomRight;
                 const size = [end[0] - start[0], end[1] - start[1]];
                 
-                // 1. Yüz Çizimi
-                ctx.strokeStyle = 'red';
-                ctx.lineWidth = 3;
-                ctx.strokeRect(start[0], start[1], size[0], size[1]);
-                
-                // 2. Landmarks (Göz, Burun, Kulak Noktaları)
+                // Çizim Stili: Neon Cyan
+                ctx.strokeStyle = 'cyan';
                 ctx.fillStyle = 'cyan';
-                face.landmarks.forEach(lm => {
-                    ctx.fillRect(lm[0]-2, lm[1]-2, 4, 4);
+                ctx.lineWidth = 2;
+
+                // 1. Ana Çerçeve (Köşeli Cyberpunk stil)
+                drawBracket(start[0], start[1], size[0], size[1]);
+
+                // 2. SİBER AĞ (Landmarks Bağlantıları)
+                // Blazeface Noktaları: 0:SağGöz, 1:SolGöz, 2:Burun, 3:Ağız, 4:SağKulak, 5:SolKulak
+                const lm = face.landmarks;
+                
+                // Gözler arası çizgi
+                ctx.beginPath();
+                ctx.moveTo(lm[0][0], lm[0][1]); // Sağ Göz
+                ctx.lineTo(lm[2][0], lm[2][1]); // Burun
+                ctx.lineTo(lm[1][0], lm[1][1]); // Sol Göz
+                ctx.stroke();
+
+                // Burundan Ağza çizgi (T şekli)
+                ctx.beginPath();
+                ctx.moveTo(lm[2][0], lm[2][1]); // Burun
+                ctx.lineTo(lm[3][0], lm[3][1]); // Ağız
+                ctx.stroke();
+
+                // Noktaları parlat
+                lm.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p[0], p[1], 3, 0, 2 * Math.PI);
+                    ctx.fill();
                 });
 
-                // 3. STRES ANALİZİ (Hareket Tabanlı)
-                // Yüzün merkez noktasının değişimini ölç
+                // 3. Stres Analizi (Hareket)
                 const centerX = start[0] + size[0]/2;
                 const centerY = start[1] + size[1]/2;
-                
-                // Hareket farkını hesapla (Titreme ölçümü)
                 const diff = Math.abs(centerX - lastFaceX) + Math.abs(centerY - lastFaceY);
                 lastFaceX = centerX; lastFaceY = centerY;
-
-                // Son 20 karenin hareket ortalamasını al
+                
                 movementScores.push(diff);
                 if (movementScores.length > 20) movementScores.shift();
-                const avgMovement = movementScores.reduce((a,b)=>a+b,0) / movementScores.length;
+                const avgMove = movementScores.reduce((a,b)=>a+b,0) / movementScores.length;
 
-                // 4. DİKKAT ANALİZİ (Burun vs Göz Pozisyonu)
-                const rightEye = face.landmarks[0];
-                const leftEye = face.landmarks[1];
-                const nose = face.landmarks[2];
-                const eyeCenterX = (rightEye[0] + leftEye[0]) / 2;
-                // Burun gözlerin ortasından ne kadar sapmış?
-                const attentionScore = Math.abs(nose[0] - eyeCenterX);
-                const lookingAtCam = attentionScore < (size[0] * 0.1); // %10 sapma payı
+                // Durum Yazısı
+                let status = "KİMLİK: DOĞRULANDI";
+                let color = "cyan";
+                if (avgMove > 3.0) { status = "DİKKAT: YÜKSEK STRES"; color = "red"; }
 
-                // SONUÇLARI YORUMLA
-                let statusText = "SAKİN";
-                let statusColor = "cyan";
-
-                // Eğer hareket çoksa (Titreme/Jitter) -> Stresli
-                if (avgMovement > 2.5) { 
-                    statusText = "STRESLİ / YALAN ?";
-                    statusColor = "red";
-                } else if (!lookingAtCam) {
-                    statusText = "GÖZ KAÇIRIYOR";
-                    statusColor = "orange";
-                }
-
-                // Ekrana Yaz
-                mainText.innerText = statusText;
-                mainText.style.color = statusColor;
-                subText.innerText = `Hareket: ${avgMovement.toFixed(1)} | Odak: ${lookingAtCam ? 'TAM' : 'DAĞINIK'}`;
+                ctx.font = "14px Courier New";
+                ctx.fillStyle = color;
+                ctx.fillText(status, start[0], start[1] - 15);
                 
-                // HUD Detayları
-                ctx.fillStyle = statusColor;
-                ctx.font = "12px Courier";
-                ctx.fillText(`H.SKOR: ${avgMovement.toFixed(1)}`, start[0], start[1] - 10);
+                mainText.innerText = status;
+                mainText.style.color = color;
+                subText.innerText = `Biyo-İzleme Aktif | Veri: ${avgMove.toFixed(1)}`;
 
             } else {
-                mainText.innerText = "YÜZ ARANIYOR...";
+                mainText.innerText = "KİMLİK ARANIYOR...";
                 mainText.style.color = "white";
-                subText.innerText = "Kişiye odaklanın";
-                movementScores = []; // Reset
+                subText.innerText = "Yüze Odaklanın";
             }
         }
+        
+        function drawBracket(x, y, w, h) {
+            const len = w * 0.2;
+            ctx.beginPath();
+            // Sol Üst
+            ctx.moveTo(x, y + len); ctx.lineTo(x, y); ctx.lineTo(x + len, y);
+            // Sağ Üst
+            ctx.moveTo(x + w - len, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + len);
+            // Sağ Alt
+            ctx.moveTo(x + w, y + h - len); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - len, y + h);
+            // Sol Alt
+            ctx.moveTo(x + len, y + h); ctx.lineTo(x, y + h); ctx.lineTo(x, y + h - len);
+            ctx.stroke();
+        }
 
-        // --- 2. DİĞER MODLAR (Önceki gibi) ---
+        // --- 2. DİĞER MODLAR ---
         async function runObjectDetection() {
             const p = await objectModel.detect(video);
             p.forEach(pred => {
                 const [x, y, w, h] = pred.bbox;
-                ctx.strokeStyle = '#0f0'; ctx.strokeRect(x, y, w, h);
-                ctx.fillStyle = '#0f0'; ctx.fillText(translate[pred.class] || pred.class, x, y - 5);
+                const name = translate[pred.class] || pred.class;
+                
+                ctx.strokeStyle = '#0f0'; 
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x, y, w, h);
+                
+                // İsim etiketi arkası
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+                ctx.fillRect(x, y-20, ctx.measureText(name).width + 10, 20);
+                
+                ctx.fillStyle = '#fff'; 
+                ctx.fillText(name, x+5, y - 5);
             });
-            mainText.innerText = `${p.length} NESNE`; mainText.style.color = "#0f0";
-            subText.innerText = "Genel Tarama";
+            mainText.innerText = `${p.length} OBJE`; mainText.style.color = "#0f0";
         }
 
         async function runRoadMode() {
@@ -297,53 +355,67 @@
             let danger = false;
             vehicles.forEach(v => {
                 const [x, y, w, h] = v.bbox;
-                ctx.strokeStyle = 'cyan'; ctx.strokeRect(x, y, w, h);
+                // Mesafe Algısı: Ekranın %15'inden büyükse yakındır
                 if (w*h > canvas.width*canvas.height*0.15) danger = true;
+                
+                ctx.strokeStyle = danger ? 'red' : 'cyan';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x, y, w, h);
             });
-            mainText.innerText = danger ? "⚠️ ÇARPIŞMA RİSKİ" : "YOL AÇIK";
+            mainText.innerText = danger ? "⚠️ ÇARPIŞMA RİSKİ" : "GÜVENLİ SÜRÜŞ";
             mainText.style.color = danger ? "red" : "cyan";
             hud.style.borderColor = danger ? "red" : "cyan";
         }
 
         function runCryptoAnalysis() {
+            // Orta nokta renk analizi
             const cx = canvas.width/2, cy = canvas.height/2;
-            const data = ctx.getImageData(cx-50, cy-50, 100, 100).data;
+            const size = 100;
+            const data = ctx.getImageData(cx-size/2, cy-size/2, size, size).data;
             let g=0, r=0;
+            
             for(let i=0; i<data.length; i+=4) {
-                if(data[i+1]>data[i]+20) g++; if(data[i]>data[i+1]+20) r++;
+                if(data[i+1] > data[i]+20) g++; // Yeşil baskın
+                if(data[i] > data[i+1]+20) r++; // Kırmızı baskın
             }
-            ctx.strokeStyle = 'gold'; ctx.strokeRect(cx-50, cy-50, 100, 100);
-            if(g+r>100) {
-                mainText.innerText = g>r ? "AL (LONG)" : "SAT (SHORT)";
-                mainText.style.color = g>r ? "#0f0" : "#f00";
+            
+            ctx.strokeStyle = 'gold'; 
+            ctx.lineWidth = 2;
+            ctx.strokeRect(cx-size/2, cy-size/2, size, size);
+            
+            if(g+r > 50) { // Yeterli renk verisi varsa
+                const signal = g > r ? "SİNYAL: AL (LONG)" : "SİNYAL: SAT (SHORT)";
+                const color = g > r ? "#0f0" : "#f00";
+                mainText.innerText = signal; mainText.style.color = color;
             } else {
-                mainText.innerText = "GRAFİK YOK"; mainText.style.color = "gold";
+                mainText.innerText = "GRAFİK TARANIYOR..."; mainText.style.color = "gold";
             }
         }
 
         function runGrainCounter() {
+            // Siyah/Beyaz Eşikleme ile sayım
             const size = 200, sx = (canvas.width-size)/2, sy = (canvas.height-size)/2;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            ctx.strokeStyle = 'magenta'; ctx.strokeRect(sx, sy, size, size);
             
             const frame = ctx.getImageData(sx, sy, size, size);
             const data = frame.data;
             const bin = new Uint8Array(size*size);
-            
+            let pixels = 0;
+
             for(let i=0; i<data.length; i+=4) {
                 const b = (data[i]+data[i+1]+data[i+2])/3;
-                if(b < threshold) { bin[i/4]=1; data[i]=255; data[i+1]=0; data[i+2]=255; }
+                // Eşik değerinin altındaysa (koyu renk) işaretle
+                if(b < threshold) { 
+                    bin[i/4]=1; pixels++;
+                    data[i]=255; data[i+1]=0; data[i+2]=255; // Magenta boya
+                }
             }
             ctx.putImageData(frame, sx, sy);
+            ctx.strokeStyle = 'magenta'; ctx.strokeRect(sx, sy, size, size);
             
-            // Basit Sayım (Leke analizi yerine piksel yoğunluğu tahmini - Mobil Performans için)
-            // Daha gelişmiş BFS sayımı mobilde kasabilir, burada basit piksel/ortalama_boyut tahmini yapıyoruz
-            let pixels = 0;
-            for(let i=0; i<bin.length; i++) if(bin[i]===1) pixels++;
-            const estCount = Math.floor(pixels / 80); // Ortalama bir çekirdek 80 piksel kabul ettik
-            
-            mainText.innerText = `TAHMİNİ: ${estCount}`;
-            mainText.style.color = "magenta";
+            // 80 piksel = 1 ortalama çekirdek kabulü
+            const estCount = Math.floor(pixels / 80); 
+            mainText.innerText = `ADET: ${estCount}`; mainText.style.color = "magenta";
         }
 
         // --- YARDIMCILAR ---
@@ -352,17 +424,32 @@
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(`btn-${mode}`).classList.add('active');
             
+            // UI Reset
             hud.className = 'hud-overlay';
             document.getElementById('speedometer').style.display = 'none';
             document.getElementById('grainControls').style.display = 'none';
             document.getElementById('crosshair').style.display = 'block';
             infoPanel.style.borderColor = '#0f0';
             
-            if(mode==='emotion') { hud.classList.add('emotion-hud'); infoPanel.style.borderColor='red'; speak("Yüz Analizi Aktif"); }
-            else if(mode==='grain') { hud.classList.add('grain-hud'); document.getElementById('grainControls').style.display='block'; infoPanel.style.borderColor='magenta'; speak("Tane Sayar"); }
-            else if(mode==='road') { hud.classList.add('road-hud'); document.getElementById('speedometer').style.display='block'; document.getElementById('crosshair').style.display='none'; infoPanel.style.borderColor='cyan'; speak("Yol Modu"); }
-            else if(mode==='crypto') { hud.classList.add('crypto-hud'); infoPanel.style.borderColor='gold'; speak("Kripto"); }
-            else speak("Nesne Modu");
+            if(mode==='emotion') { 
+                hud.classList.add('emotion-hud'); 
+                infoPanel.style.borderColor='cyan'; 
+            }
+            else if(mode==='grain') { 
+                hud.classList.add('grain-hud'); 
+                document.getElementById('grainControls').style.display='block'; 
+                infoPanel.style.borderColor='magenta'; 
+            }
+            else if(mode==='road') { 
+                hud.classList.add('road-hud'); 
+                document.getElementById('speedometer').style.display='block'; 
+                document.getElementById('crosshair').style.display='none'; 
+                infoPanel.style.borderColor='red'; 
+            }
+            else if(mode==='crypto') { 
+                hud.classList.add('crypto-hud'); 
+                infoPanel.style.borderColor='gold'; 
+            }
         }
 
         function updateThreshold(v) { threshold = parseInt(v); document.getElementById('threshVal').innerText = v; }
@@ -372,10 +459,8 @@
                 document.getElementById('speedVal').innerText = Math.round((p.coords.speed||0)*3.6);
             }, null, {enableHighAccuracy:true});
         }
-        
-        function speak(t) { window.speechSynthesis.cancel(); let u=new SpeechSynthesisUtterance(t); u.lang='tr-TR'; window.speechSynthesis.speak(u); }
 
-        main();
+        init();
     </script>
 </body>
 </html>
