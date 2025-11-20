@@ -17,10 +17,14 @@
         body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; background: #f4f6f9; }
         #map { height: 100vh; width: 100%; z-index: 1; }
         
-        /* --- SOL KONTROL PANELİ --- */
+        /* --- SOL KONTROL PANELİ (SAYDAM) --- */
         #control-panel {
             position: absolute; top: 20px; left: 20px;
-            background: rgba(255, 255, 255, 0.98);
+            /* YARI SAYDAM ARKA PLAN + BLUR EFEKTİ */
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            
             padding: 15px; border-radius: 12px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.2);
             z-index: 1000; width: 360px;
@@ -31,7 +35,8 @@
         #control-panel.minimized {
             width: 50px; height: 50px; padding: 0; overflow: hidden;
             border-left: none; border-radius: 50%;
-            background: #2c3e50; cursor: pointer;
+            background: rgba(44, 62, 80, 0.9); /* Koyu renk ve hafif saydam */
+            cursor: pointer;
             display: flex; align-items: center; justify-content: center;
         }
         #control-panel.minimized * { display: none; }
@@ -42,42 +47,42 @@
 
         .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         h2 { margin: 0; color: #2c3e50; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-        .btn-minimize { background: none; border: none; color: #95a5a6; cursor: pointer; font-size: 14px; }
-        .btn-minimize:hover { color: #2c3e50; }
+        .btn-minimize { background: none; border: none; color: #7f8c8d; cursor: pointer; font-size: 16px; padding: 5px; }
+        .btn-minimize:hover { color: #2c3e50; transform: scale(1.1); }
 
         /* Filtre Butonları */
-        .filter-bar { display: flex; gap: 3px; margin-bottom: 15px; background: #ecf0f1; padding: 4px; border-radius: 8px; }
+        .filter-bar { display: flex; gap: 3px; margin-bottom: 15px; background: rgba(236, 240, 241, 0.7); padding: 4px; border-radius: 8px; }
         .filter-btn {
             flex: 1; padding: 8px 0; cursor: pointer;
             border-radius: 6px; font-size: 11px; font-weight: 700;
             text-align: center; color: #7f8c8d; transition: all 0.2s;
         }
-        .filter-btn.active { background: white; color: #2c3e50; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .filter-btn.active { background: white; color: #2c3e50; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
         /* İstatistik Grid */
         .dashboard-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 15px; }
-        .dash-stat { background: #f8f9fa; padding: 8px; border-radius: 6px; text-align: center; border: 1px solid #eee; }
+        .dash-stat { background: rgba(248, 249, 250, 0.7); padding: 8px; border-radius: 6px; text-align: center; border: 1px solid rgba(0,0,0,0.05); }
         .d-val { font-size: 13px; font-weight: 800; color: #2c3e50; display: block; }
         .d-lbl { font-size: 9px; color: #7f8c8d; text-transform: uppercase; }
 
         /* Form Elemanları */
         label { font-size: 11px; font-weight: 600; color: #34495e; display: block; margin-bottom: 4px; margin-top: 10px;}
-        select { width: 100%; padding: 10px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; cursor: pointer; background: #fff; }
+        select { width: 100%; padding: 10px; margin-bottom: 5px; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; font-size: 12px; cursor: pointer; background: rgba(255,255,255,0.9); }
         select:focus { border-color: #3498db; outline: none; box-shadow: 0 0 0 2px rgba(52,152,219,0.1); }
 
         /* Bilgi Kartı */
         #info-card {
-            background: linear-gradient(to bottom right, #ffffff, #fdfdfd);
-            border: 1px solid #e1e4e8; border-radius: 10px;
+            background: rgba(255, 255, 255, 0.6); /* Kart içi daha saydam */
+            border: 1px solid rgba(225, 228, 232, 0.5); border-radius: 10px;
             padding: 15px; margin-top: 15px; display: none;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
-        .card-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+        .card-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 8px; }
         .card-title { font-size: 15px; font-weight: 800; color: #2c3e50; }
         .card-badge { font-size: 10px; padding: 3px 8px; border-radius: 12px; color: white; font-weight: bold; }
         
         .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .info-box { background: #f1f2f6; padding: 10px; border-radius: 6px; text-align: center; }
+        .info-box { background: rgba(241, 242, 246, 0.7); padding: 10px; border-radius: 6px; text-align: center; }
         .ib-val { font-size: 16px; font-weight: 800; color: #2c3e50; display: block; }
         .ib-lbl { font-size: 10px; color: #7f8c8d; }
 
@@ -88,12 +93,15 @@
         .btn-nav { background: #2980b9; }
         .btn-reset { width: 100%; background: #95a5a6; margin-top: 15px; color:white; border:none; padding:10px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;}
 
-        /* --- ALT TABLO PANELİ --- */
+        /* --- ALT TABLO PANELİ (SAYDAM) --- */
         #bottom-panel {
             position: absolute; bottom: 0; left: 0; right: 0;
             height: 40px; /* Kapalı yükseklik */
-            background: white; z-index: 1000;
-            border-top: 1px solid #ddd;
+            /* YARI SAYDAM */
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            border-top: 1px solid rgba(0,0,0,0.1);
             box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
             transition: height 0.3s ease;
             display: flex; flex-direction: column;
@@ -103,7 +111,8 @@
         .bp-header {
             padding: 0 20px; height: 40px;
             display: flex; justify-content: space-between; align-items: center;
-            background: #f8f9fa; border-bottom: 1px solid #eee; cursor: pointer;
+            background: rgba(248, 249, 250, 0.8); 
+            border-bottom: 1px solid rgba(0,0,0,0.1); cursor: pointer;
         }
         .bp-title { font-weight: 700; color: #2c3e50; font-size: 13px; display: flex; align-items: center; gap: 10px; }
         .bp-toggle-icon { transition: transform 0.3s; }
@@ -112,10 +121,11 @@
         .table-container { flex: 1; overflow: auto; display: none; padding: 10px; }
         #bottom-panel.expanded .table-container { display: block; }
 
+        /* Tablo Saydamlığı */
         table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
-        th { background: #f1f2f6; font-weight: 700; color: #2c3e50; position: sticky; top: 0; }
-        tr:hover { background: #f9f9f9; cursor: pointer; }
+        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.05); }
+        th { background: rgba(241, 242, 246, 0.9); font-weight: 700; color: #2c3e50; position: sticky; top: 0; backdrop-filter: blur(2px); }
+        tr:hover { background: rgba(249, 249, 249, 0.8); cursor: pointer; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
         
         /* Loader */
@@ -147,7 +157,8 @@
     <div id="control-panel">
         <div class="panel-header">
             <h2><i class="fa-solid fa-map-location-dot"></i> KADASTRO YÖNETİM</h2>
-            <button class="btn-minimize" onclick="togglePanel()"><i class="fa-solid fa-minus"></i></button>
+            <!-- DÜZELTİLDİ: event.stopPropagation() eklendi -->
+            <button class="btn-minimize" onclick="togglePanel(event)"><i class="fa-solid fa-minus"></i></button>
         </div>
 
         <!-- DASHBOARD -->
@@ -179,7 +190,7 @@
             <option value="all">Tüm İşler</option>
             <option value="2b">2/B Çalışmaları</option>
             <option value="guncelleme">Güncelleme</option>
-            <option value="mudurluk">Diğer (Tesis/7139)</option>
+            <option value="mudurluk">Diğer (Tesis/7139/Ek-4)</option>
         </select>
 
         <label><i class="fa-solid fa-city"></i> İlçe Filtrele</label>
@@ -199,19 +210,16 @@
                 <span class="card-badge" id="infoBadge"></span>
             </div>
             
-            <div id="infoStatus" style="font-size:11px; text-align:center; margin-bottom:10px; color:#7f8c8d;"></div>
+            <div id="searchStatus" class="search-loader"><i class="fa-solid fa-satellite-dish"></i> Konum Bulunuyor...</div>
 
-            <div class="info-grid" id="infoStats">
-                <!-- JS ile dolacak -->
-            </div>
-
+            <div id="infoStatus" style="font-size:11px; text-align:center; margin-top:5px;"></div>
+            <div class="stats-container" id="infoStats"></div>
             <div class="btn-group">
-                <button class="btn btn-tkgm" onclick="openTKGM()"><i class="fa-solid fa-building-columns"></i> TKGM</button>
-                <button class="btn btn-nav" onclick="openNav()"><i class="fa-solid fa-location-arrow"></i> Rota</button>
+                <button class="btn btn-tkgm" onclick="openTKGM()">TKGM</button>
+                <button class="btn btn-nav" onclick="openNav()">Yol Tarifi</button>
             </div>
         </div>
-
-        <button class="btn-reset" onclick="resetView()">Görünümü Sıfırla</button>
+        <button class="btn-reset" onclick="resetView()">Haritayı Sıfırla</button>
     </div>
 
     <!-- HARİTA -->
@@ -228,7 +236,7 @@
         </div>
         <div class="table-container">
             <input type="text" id="tableSearch" placeholder="Tabloda Ara (Mahalle, İlçe, İş Türü...)" onkeyup="searchTable()" 
-                   style="width:100%; padding:8px; margin-bottom:10px; border:1px solid #ddd; border-radius:4px;">
+                   style="width:100%; padding:8px; margin-bottom:10px; border:1px solid rgba(0,0,0,0.1); border-radius:4px; background:rgba(255,255,255,0.8);">
             <table id="dataTable">
                 <thead>
                     <tr>
@@ -317,8 +325,8 @@
                 });
 
                 document.getElementById("loading-overlay").style.display = "none";
-                populateFilterOptions(); // İlçeleri doldur
-                applyFilters(); // İlk açılışta her şeyi göster
+                populateFilterOptions(); 
+                applyFilters(); 
 
             } catch (error) {
                 console.error(error);
@@ -388,8 +396,6 @@
         }
 
         // --- FİLTRE YÖNETİMİ ---
-        
-        // Sadece başlangıçta ilçeleri doldurmak için
         function populateFilterOptions() {
             const dists = [...new Set(allData.map(d => d.dist))].sort();
             const dSelect = document.getElementById("districtSelect");
@@ -404,42 +410,32 @@
             applyFilters();
         }
 
-        // Ana Filtreleme Fonksiyonu
-        // Hem dropdown'ları, hem tabloyu, hem haritayı etkiler
         function applyFilters() {
             const selectedJob = document.getElementById("jobTypeSelect").value;
             const selectedDist = document.getElementById("districtSelect").value;
 
-            // 1. Veri Süzme
             const filteredData = allData.filter(d => {
-                // Ana Filtre (Tümü/İhale/Devam)
                 let mainPass = false;
                 if (currentMainFilter === 'all') mainPass = true;
                 else if (currentMainFilter === 'ihalede' && d.cat === 'ihalede') mainPass = true;
                 else if (currentMainFilter === 'devam' && d.cat !== 'ihalede') mainPass = true;
                 if (!mainPass) return false;
 
-                // İş Türü Filtresi
                 let jobPass = false;
                 if (selectedJob === 'all') jobPass = true;
                 else if (selectedJob === d.cat) jobPass = true;
                 if (!jobPass) return false;
 
-                // İlçe Filtresi
                 if (selectedDist !== 'all' && d.dist !== selectedDist) return false;
-
                 return true;
             });
 
-            // 2. Arayüz Güncelleme
             renderMarkers(filteredData);
             renderTable(filteredData);
             updateDashboard(filteredData);
             updateNeighborhoodDropdown(filteredData);
             
-            // Haritayı sığdır (Eğer ilçe seçiliyse)
             if (selectedDist !== 'all') {
-                 // Marker varsa sınırlara git, yoksa ilçe merkezine
                  if (markers.length > 0) {
                      const group = new L.featureGroup(markers);
                      map.fitBounds(group.getBounds(), {padding:[50,50]});
@@ -489,7 +485,7 @@
                     marker.bindTooltip(`${d.name}`, {permanent: false, direction: 'top'});
                     marker.on('click', () => {
                         selectUnit(d);
-                        if(document.getElementById("control-panel").classList.contains("minimized")) togglePanel();
+                        // Panel minimize ise açma, kullanıcı kendi açsın
                     });
                     markers.push(marker);
                 }
@@ -536,7 +532,7 @@
             }
         }
 
-        // --- MAP & ACTION ---
+        // --- MAP ACTIONS ---
         async function fetchAndZoom(d) {
             const onlineCoords = await fetchCoordinatesOnline(d.dist, d.name);
             if(onlineCoords) {
@@ -594,12 +590,17 @@
             }
         }
 
-        // --- HELPERS ---
-        function togglePanel() {
+        // --- HELPERS (FIXED TOGGLE) ---
+        function togglePanel(e) {
+            e.stopPropagation(); // Bubbling'i durdur
             document.getElementById("control-panel").classList.toggle("minimized");
         }
+        
+        // Panel minimize iken tıklandığında açılması için
         document.getElementById("control-panel").addEventListener("click", function(e){
-            if(this.classList.contains("minimized")) this.classList.remove("minimized");
+            if(this.classList.contains("minimized")) {
+                this.classList.remove("minimized");
+            }
         });
 
         function toggleBottomPanel() {
@@ -629,9 +630,6 @@
             map.setView([36.7, 34.0], 9);
             document.getElementById("info-card").style.display = "none";
             if(currentMarker) map.removeLayer(currentMarker);
-            
-            document.getElementById("districtSelect").value = "all";
-            document.getElementById("jobTypeSelect").value = "all";
             setMainFilter('all', document.querySelector('.filter-btn'));
         }
 
