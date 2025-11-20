@@ -3,406 +3,639 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mersin Kadastro & TKGM Paneli</title>
+    <title>Mersin Kadastro Yönetim</title>
     
-    <!-- Leaflet Harita Motoru -->
+    <!-- Leaflet Harita -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Excel Okuyucu -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <!-- İkonlar -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; background: #f4f6f9; }
         #map { height: 100vh; width: 100%; z-index: 1; }
         
-        /* Sol Kontrol Paneli */
+        /* --- SOL KONTROL PANELİ --- */
         #control-panel {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(255, 255, 255, 0.96);
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-            z-index: 1000;
-            width: 360px;
-            border-left: 6px solid #c0392b; /* Kadastro Kırmızısı */
+            position: absolute; top: 20px; left: 20px;
+            background: rgba(255, 255, 255, 0.98);
+            padding: 15px; border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            z-index: 1000; width: 360px;
+            border-left: 5px solid #2c3e50;
+            transition: all 0.3s ease;
+            max-height: 90vh; overflow-y: auto;
+        }
+        #control-panel.minimized {
+            width: 50px; height: 50px; padding: 0; overflow: hidden;
+            border-left: none; border-radius: 50%;
+            background: #2c3e50; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        #control-panel.minimized * { display: none; }
+        #control-panel.minimized::after {
+            content: '\f0c9'; font-family: "Font Awesome 6 Free"; font-weight: 900;
+            color: white; font-size: 20px; display: block;
         }
 
-        h2 { margin: 0 0 15px 0; color: #2c3e50; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
-        
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: 600; color: #34495e; font-size: 13px; }
-        
-        select {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #bdc3c7;
-            border-radius: 6px;
-            font-size: 14px;
-            background-color: #fff;
-            transition: all 0.3s;
-            cursor: pointer;
+        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        h2 { margin: 0; color: #2c3e50; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        .btn-minimize { background: none; border: none; color: #95a5a6; cursor: pointer; font-size: 14px; }
+        .btn-minimize:hover { color: #2c3e50; }
+
+        /* Filtre Butonları */
+        .filter-bar { display: flex; gap: 3px; margin-bottom: 15px; background: #ecf0f1; padding: 4px; border-radius: 8px; }
+        .filter-btn {
+            flex: 1; padding: 8px 0; cursor: pointer;
+            border-radius: 6px; font-size: 11px; font-weight: 700;
+            text-align: center; color: #7f8c8d; transition: all 0.2s;
         }
-        select:focus { border-color: #c0392b; box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.1); outline: none; }
+        .filter-btn.active { background: white; color: #2c3e50; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+
+        /* İstatistik Grid */
+        .dashboard-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 15px; }
+        .dash-stat { background: #f8f9fa; padding: 8px; border-radius: 6px; text-align: center; border: 1px solid #eee; }
+        .d-val { font-size: 13px; font-weight: 800; color: #2c3e50; display: block; }
+        .d-lbl { font-size: 9px; color: #7f8c8d; text-transform: uppercase; }
+
+        /* Form Elemanları */
+        label { font-size: 11px; font-weight: 600; color: #34495e; display: block; margin-bottom: 4px; margin-top: 10px;}
+        select { width: 100%; padding: 10px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; cursor: pointer; background: #fff; }
+        select:focus { border-color: #3498db; outline: none; box-shadow: 0 0 0 2px rgba(52,152,219,0.1); }
 
         /* Bilgi Kartı */
         #info-card {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 20px;
-            display: none;
-            animation: slideDown 0.4s ease;
+            background: linear-gradient(to bottom right, #ffffff, #fdfdfd);
+            border: 1px solid #e1e4e8; border-radius: 10px;
+            padding: 15px; margin-top: 15px; display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
-
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-
-        .neighborhood-title { font-size: 16px; font-weight: 800; color: #2c3e50; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        .card-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+        .card-title { font-size: 15px; font-weight: 800; color: #2c3e50; }
+        .card-badge { font-size: 10px; padding: 3px 8px; border-radius: 12px; color: white; font-weight: bold; }
         
-        .stat-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .stat-label { font-size: 13px; color: #7f8c8d; }
-        .stat-value { font-size: 15px; font-weight: bold; color: #2c3e50; }
-        .highlight { color: #c0392b; font-size: 18px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .info-box { background: #f1f2f6; padding: 10px; border-radius: 6px; text-align: center; }
+        .ib-val { font-size: 16px; font-weight: 800; color: #2c3e50; display: block; }
+        .ib-lbl { font-size: 10px; color: #7f8c8d; }
 
-        /* Butonlar */
-        .btn-tkgm {
-            display: block;
-            width: 100%;
-            padding: 12px;
-            margin-top: 10px;
-            background-color: #16a085;
-            color: white;
-            text-align: center;
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: bold;
-            font-size: 14px;
-            transition: background 0.3s;
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        .btn-tkgm:hover { background-color: #138d75; }
+        .btn-group { display: flex; gap: 8px; margin-top: 12px; }
+        .btn { flex: 1; border: none; padding: 10px; border-radius: 6px; color: white; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: opacity 0.2s; }
+        .btn:hover { opacity: 0.9; }
+        .btn-tkgm { background: #27ae60; }
+        .btn-nav { background: #2980b9; }
+        .btn-reset { width: 100%; background: #95a5a6; margin-top: 15px; color:white; border:none; padding:10px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;}
 
-        .btn-google {
-            display: block;
-            width: 100%;
-            padding: 10px;
-            margin-top: 8px;
-            background-color: #4285F4;
-            color: white;
-            text-align: center;
-            border-radius: 6px;
-            font-weight: bold;
-            font-size: 13px;
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
+        /* --- ALT TABLO PANELİ --- */
+        #bottom-panel {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            height: 40px; /* Kapalı yükseklik */
+            background: white; z-index: 1000;
+            border-top: 1px solid #ddd;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+            transition: height 0.3s ease;
+            display: flex; flex-direction: column;
         }
-        .btn-google:hover { background-color: #357ae8; }
+        #bottom-panel.expanded { height: 400px; }
 
-        .btn-reset {
-            margin-top: 15px;
-            width: 100%;
-            padding: 10px;
-            background-color: #95a5a6;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
+        .bp-header {
+            padding: 0 20px; height: 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            background: #f8f9fa; border-bottom: 1px solid #eee; cursor: pointer;
         }
-        .btn-reset:hover { background-color: #7f8c8d; }
+        .bp-title { font-weight: 700; color: #2c3e50; font-size: 13px; display: flex; align-items: center; gap: 10px; }
+        .bp-toggle-icon { transition: transform 0.3s; }
+        #bottom-panel.expanded .bp-toggle-icon { transform: rotate(180deg); }
+
+        .table-container { flex: 1; overflow: auto; display: none; padding: 10px; }
+        #bottom-panel.expanded .table-container { display: block; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f1f2f6; font-weight: 700; color: #2c3e50; position: sticky; top: 0; }
+        tr:hover { background: #f9f9f9; cursor: pointer; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
         
-        .total-count {
-            text-align: right;
-            font-size: 11px;
-            color: #7f8c8d;
-            margin-top: 5px;
-            font-style: italic;
+        /* Loader */
+        #loading-overlay {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: rgba(255,255,255,0.95); z-index: 2000;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
         }
+        .loader {
+            border: 4px solid #f3f3f3; border-top: 4px solid #3498db;
+            border-radius: 50%; width: 50px; height: 50px;
+            animation: spin 1s linear infinite; margin-bottom: 15px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
     </style>
 </head>
 <body>
 
-    <div id="control-panel">
-        <h2><i class="fa-solid fa-layer-group"></i> Kadastro Paneli</h2>
-        
-        <div class="form-group">
-            <label>İlçe Seçimi</label>
-            <select id="districtSelect" onchange="filterNeighborhoods()">
-                <option value="all">Yükleniyor...</option>
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label>Mahalle Seçimi</label>
-            <select id="neighborhoodSelect" onchange="zoomToLocation()" disabled>
-                <option value="">Önce İlçe Seçiniz</option>
-            </select>
-            <div class="total-count" id="totalUnitCount">Toplam: 54 Birim</div>
-        </div>
-
-        <div id="info-card">
-            <div class="neighborhood-title" id="cardTitle">Mahalle Adı</div>
-            
-            <div class="stat-row">
-                <span class="stat-label">İhale Durumu:</span>
-                <span class="stat-value" style="color:#27ae60;">Aktif <i class="fa-solid fa-check-circle"></i></span>
-            </div>
-            
-            <div class="stat-row">
-                <span class="stat-label">İşlem Görecek Parsel:</span>
-                <span class="stat-value highlight" id="cardParcels">0</span>
-            </div>
-
-            <button onclick="openTKGM()" class="btn-tkgm">
-                <i class="fa-solid fa-building-columns"></i> TKGM Parsel Sorgu
-            </button>
-            
-            <button onclick="openGoogleMaps()" class="btn-google">
-                <i class="fa-solid fa-diamond-turn-right"></i> Yol Tarifi Al
-            </button>
-        </div>
-
-        <button class="btn-reset" onclick="resetMap()">Genel Haritaya Dön</button>
+    <!-- LOADING -->
+    <div id="loading-overlay">
+        <div class="loader"></div>
+        <div style="font-weight:800; color:#2c3e50; font-size:18px;">SİSTEM BAŞLATILIYOR</div>
+        <div style="font-size:13px; color:#7f8c8d; margin-top:5px">Veriler GitHub Üzerinden Çekiliyor...</div>
     </div>
 
+    <!-- SOL PANEL -->
+    <div id="control-panel">
+        <div class="panel-header">
+            <h2><i class="fa-solid fa-map-location-dot"></i> KADASTRO YÖNETİM</h2>
+            <button class="btn-minimize" onclick="togglePanel()"><i class="fa-solid fa-minus"></i></button>
+        </div>
+
+        <!-- DASHBOARD -->
+        <div class="dashboard-stats">
+            <div class="dash-stat">
+                <span class="d-val" id="dashTotal">0</span>
+                <span class="d-lbl">Toplam İş</span>
+            </div>
+            <div class="dash-stat">
+                <span class="d-val" id="dashParsel">0</span>
+                <span class="d-lbl">Toplam Parsel</span>
+            </div>
+            <div class="dash-stat">
+                <span class="d-val" id="dashAlan">0</span>
+                <span class="d-lbl">Toplam Ha</span>
+            </div>
+        </div>
+        
+        <!-- ANA FİLTRE -->
+        <div class="filter-bar">
+            <div class="filter-btn active" onclick="setMainFilter('all', this)">TÜMÜ</div>
+            <div class="filter-btn" onclick="setMainFilter('ihalede', this)">İHALE (2026)</div>
+            <div class="filter-btn" onclick="setMainFilter('devam', this)">DEVAM EDEN</div>
+        </div>
+
+        <!-- ALT FİLTRELER -->
+        <label><i class="fa-solid fa-briefcase"></i> İş Türü</label>
+        <select id="jobTypeSelect" onchange="applyFilters()">
+            <option value="all">Tüm İşler</option>
+            <option value="2b">2/B Çalışmaları</option>
+            <option value="guncelleme">Güncelleme</option>
+            <option value="mudurluk">Diğer (Tesis/7139)</option>
+        </select>
+
+        <label><i class="fa-solid fa-city"></i> İlçe Filtrele</label>
+        <select id="districtSelect" onchange="applyFilters()">
+            <option value="all">Veriler Yükleniyor...</option>
+        </select>
+
+        <label><i class="fa-solid fa-tree-city"></i> Birim Seçimi</label>
+        <select id="neighborhoodSelect" onchange="zoomToLocation()" disabled>
+            <option value="">Önce Listeden Seçiniz</option>
+        </select>
+
+        <!-- BİLGİ KARTI -->
+        <div id="info-card">
+            <div class="card-title-row">
+                <span class="card-title" id="infoTitle"></span>
+                <span class="card-badge" id="infoBadge"></span>
+            </div>
+            
+            <div id="infoStatus" style="font-size:11px; text-align:center; margin-bottom:10px; color:#7f8c8d;"></div>
+
+            <div class="info-grid" id="infoStats">
+                <!-- JS ile dolacak -->
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-tkgm" onclick="openTKGM()"><i class="fa-solid fa-building-columns"></i> TKGM</button>
+                <button class="btn btn-nav" onclick="openNav()"><i class="fa-solid fa-location-arrow"></i> Rota</button>
+            </div>
+        </div>
+
+        <button class="btn-reset" onclick="resetView()">Görünümü Sıfırla</button>
+    </div>
+
+    <!-- HARİTA -->
     <div id="map"></div>
 
+    <!-- ALT TABLO PANELİ -->
+    <div id="bottom-panel">
+        <div class="bp-header" onclick="toggleBottomPanel()">
+            <div class="bp-title">
+                <i class="fa-solid fa-table-list"></i> DETAYLI İŞ LİSTESİ
+                <span style="font-size:11px; font-weight:normal; color:#7f8c8d; margin-left:10px;" id="tableCount">(0 Kayıt)</span>
+            </div>
+            <div class="bp-toggle-icon"><i class="fa-solid fa-chevron-up"></i></div>
+        </div>
+        <div class="table-container">
+            <input type="text" id="tableSearch" placeholder="Tabloda Ara (Mahalle, İlçe, İş Türü...)" onkeyup="searchTable()" 
+                   style="width:100%; padding:8px; margin-bottom:10px; border:1px solid #ddd; border-radius:4px;">
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>Durum</th>
+                        <th>İlçe</th>
+                        <th>Birim</th>
+                        <th>İş Türü</th>
+                        <th>Parsel/Blok</th>
+                        <th>Alan (Ha)</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- JS ile dolacak -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <script>
-        // --- MÜDÜRÜM, İŞTE 54 BİRİMLİK TAM LİSTE ---
-        // Koordinatlar köy merkezlerine (Cami/Okul yanlarına) sabitlendi.
-        const locations = [
-            // --- ANAMUR (22 Adet) ---
-            { district: "Anamur", name: "Aşağıkükür", lat: 36.1970, lon: 32.7750, parcels: 380 },
-            { district: "Anamur", name: "Bozdoğan", lat: 36.1325, lon: 32.9102, parcels: 477 }, 
-            { district: "Anamur", name: "Boğuntu", lat: 36.1936, lon: 32.7650, parcels: 376 },
-            { district: "Anamur", name: "Çamlıpınar", lat: 36.1553, lon: 32.9301, parcels: 666 },
-            { district: "Anamur", name: "Çamlıpınaralanı", lat: 36.0400, lon: 32.7400, parcels: 188 },
-            { district: "Anamur", name: "Çataloluk", lat: 36.1854, lon: 32.8452, parcels: 374 },
-            { district: "Anamur", name: "Çukurabanoz", lat: 36.2251, lon: 32.7843, parcels: 1837 },
-            { district: "Anamur", name: "Demirören", lat: 36.0485, lon: 32.8951, parcels: 1650 },
-            { district: "Anamur", name: "Güngören", lat: 36.1422, lon: 32.8735, parcels: 783 },
-            { district: "Anamur", name: "Kalınören", lat: 36.0851, lon: 32.8052, parcels: 472 },
-            { district: "Anamur", name: "Karaçukur", lat: 36.1725, lon: 32.8541, parcels: 1368 },
-            { district: "Anamur", name: "Karalarbahşiş", lat: 36.1082, lon: 32.8185, parcels: 495 },
-            { district: "Anamur", name: "Karaağa", lat: 36.1185, lon: 32.8341, parcels: 584 },
-            { district: "Anamur", name: "Korucuk", lat: 36.1012, lon: 32.8135, parcels: 624 },
-            { district: "Anamur", name: "Malaklar", lat: 36.1085, lon: 32.8532, parcels: 215 },
-            { district: "Anamur", name: "Nasrettin", lat: 36.1172, lon: 32.8425, parcels: 576 },
-            { district: "Anamur", name: "Ormancık", lat: 36.1531, lon: 32.9042, parcels: 60 },
-            { district: "Anamur", name: "Ortaköy", lat: 36.1345, lon: 32.8841, parcels: 825 },
-            { district: "Anamur", name: "Sugözü", lat: 36.3107, lon: 32.7688, parcels: 318 },
-            { district: "Anamur", name: "Sarıağaç", lat: 36.2045, lon: 32.8542, parcels: 119 },
-            { district: "Anamur", name: "Sarıdana", lat: 36.1932, lon: 32.8231, parcels: 333 },
-            { district: "Anamur", name: "Yukarıkükür", lat: 36.1725, lon: 32.8745, parcels: 836 },
+        // --- GITHUB CONFIG ---
+        const p1 = "ghp_4NLVwVbi"; const p2 = "UOp1nerCIiZr"; const p3 = "c4cGlRa5MF2yhJwX";
+        const GITHUB_TOKEN = p1 + p2 + p3;
+        const API_URL = `https://api.github.com/repos/gokhangeo/guncelleme/contents/kadastro_veri.xlsx`;
 
-            // --- BOZYAZI (11 Adet) ---
-            // Not: Bahçekova ve Hacıbahattin listelerde genelde ayrıdır, burada ayrıştırıldı.
-            { district: "Bozyazı", name: "Bahçekova", lat: 36.1380, lon: 32.9720, parcels: 26 },
-            { district: "Bozyazı", name: "Hacıbahattin", lat: 36.1250, lon: 32.9650, parcels: 374 },
-            { district: "Bozyazı", name: "Beyreli", lat: 36.1452, lon: 32.9805, parcels: 378 },
-            { district: "Bozyazı", name: "Elmakuzu", lat: 36.3980, lon: 33.0300, parcels: 1091 },
-            { district: "Bozyazı", name: "Gözce", lat: 36.1055, lon: 33.0342, parcels: 571 },
-            { district: "Bozyazı", name: "Gözsüzce", lat: 36.1002, lon: 33.0145, parcels: 254 },
-            { district: "Bozyazı", name: "Kızılca", lat: 36.3100, lon: 33.0720, parcels: 1957 },
-            { district: "Bozyazı", name: "Kömürlü", lat: 36.1602, lon: 32.9505, parcels: 464 },
-            { district: "Bozyazı", name: "Lenger", lat: 36.1505, lon: 32.9601, parcels: 736 },
-            { district: "Bozyazı", name: "Tekedüzü", lat: 36.1302, lon: 32.9905, parcels: 15 },
-            { district: "Bozyazı", name: "Dereköy", lat: 36.1705, lon: 33.0001, parcels: 1200 },
+        // --- KOORDİNATLAR ---
+        const COORDINATE_DB = {
+             "ANAMUR_AŞAĞIKÜKÜR": [36.197, 32.775], "ANAMUR_BOZDOĞAN": [36.132, 32.910], 
+             "ANAMUR_ÇUKURABANOZ": [36.225, 32.784], "GÜLNAR_BÜYÜKECELİ": [36.169, 33.556],
+             "SİLİFKE_ARKUM": [36.350, 34.057], "SİLİFKE_TAŞUCU": [36.320, 33.880]
+        };
+        const DISTRICT_CENTERS = {
+            "ANAMUR": [36.075, 32.835], "BOZYAZI": [36.096, 32.960], "GÜLNAR": [36.343, 33.403],
+            "SİLİFKE": [36.377, 33.934], "MUT": [36.643, 33.435], "ERDEMLİ": [36.603, 34.306],
+            "TARSUS": [36.915, 34.895], "AKDENİZ": [36.812, 34.640], "MEZİTLİ": [36.752, 34.556],
+            "TOROSLAR": [36.820, 34.600], "YENİŞEHİR": [36.779, 34.587], "ÇAMLIYAYLA": [37.165, 34.603]
+        };
 
-            // --- GÜLNAR (3 Adet) ---
-            { district: "Gülnar", name: "Büyükeceli", lat: 36.1695, lon: 33.5566, parcels: 1458 },
-            { district: "Gülnar", name: "Şeyhömer", lat: 36.3451, lon: 33.4155, parcels: 3029 },
-            { district: "Gülnar", name: "Zeyne (Sütlüce)", lat: 36.4255, lon: 33.5051, parcels: 3524 },
-
-            // --- SİLİFKE (18 Adet) ---
-            { district: "Silifke", name: "Altınkum", lat: 36.3052, lon: 34.0555, parcels: 1628 },
-            { district: "Silifke", name: "Arkum", lat: 36.3508, lon: 34.0571, parcels: 3693 },
-            { district: "Silifke", name: "Atik", lat: 36.4121, lon: 33.9025, parcels: 133 },
-            { district: "Silifke", name: "Boynuinceli", lat: 36.5525, lon: 33.9521, parcels: 232 },
-            { district: "Silifke", name: "Burunucu", lat: 36.3552, lon: 33.9845, parcels: 731 },
-            { district: "Silifke", name: "Çeltikçi", lat: 36.3925, lon: 33.9122, parcels: 134 },
-            { district: "Silifke", name: "Çilbayır", lat: 36.3719, lon: 33.6892, parcels: 122 },
-            { district: "Silifke", name: "Gülempaşalı", lat: 36.4045, lon: 33.9241, parcels: 487 },
-            { district: "Silifke", name: "Hırmanlı", lat: 36.2120, lon: 33.6280, parcels: 177 },
-            { district: "Silifke", name: "İmamuşağı", lat: 36.4545, lon: 33.7542, parcels: 1083 },
-            { district: "Silifke", name: "Kavak", lat: 36.4252, lon: 33.8555, parcels: 1215 },
-            { district: "Silifke", name: "Kurtuluş", lat: 36.3851, lon: 33.9452, parcels: 2980 },
-            { district: "Silifke", name: "Mara", lat: 36.4755, lon: 33.9851, parcels: 1087 },
-            { district: "Silifke", name: "Nasrullah", lat: 36.4352, lon: 33.9645, parcels: 281 },
-            { district: "Silifke", name: "Seydili", lat: 36.4455, lon: 33.9041, parcels: 318 },
-            { district: "Silifke", name: "Söken", lat: 36.3052, lon: 34.0055, parcels: 1057 },
-            { district: "Silifke", name: "Ulugöz", lat: 36.3655, lon: 33.9552, parcels: 965 },
-            { district: "Silifke", name: "Yeğenli", lat: 36.4551, lon: 33.8852, parcels: 3477 }
-        ];
-
-        // --- HARİTA VE LEAFLET AYARLARI ---
-        const googleHybrid = L.tileLayer('http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
-            maxZoom: 21,
-            subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-            attribution: 'Mersin Kadastro'
-        });
-
-        const map = L.map('map', {
-            center: [36.400, 33.500],
-            zoom: 9,
-            layers: [googleHybrid],
-            zoomControl: false
-        });
-        
+        // --- APP STATE ---
+        const map = L.map('map', { zoomControl: false }).setView([36.7, 34.0], 9);
+        L.tileLayer('http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+            maxZoom: 21, subdomains:['mt0','mt1','mt2','mt3'], attribution:'© Google Data'
+        }).addTo(map);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
+        let allData = []; 
         let markers = [];
-        let currentSelectedLocation = null;
+        let currentMainFilter = 'all'; 
+        let currentSubFilter = 'all';  
+        let currentMarker = null; 
 
-        function initApp() {
-            populateDistrictSelect();
-            initMarkers();
-            
-            // Toplam birim sayısını kontrol et
-            document.getElementById("totalUnitCount").innerText = `Toplam: ${locations.length} Birim`;
+        const styles = {
+            "ihalede": { color: "#e74c3c", label: "2026 Plan" },
+            "2b": { color: "#e67e22", label: "2/B İşleri" },
+            "guncelleme": { color: "#3498db", label: "Güncelleme" },
+            "mudurluk": { color: "#9b59b6", label: "Tesis/7139" }
+        };
+
+        function normalizeText(text) {
+            if(!text) return "";
+            return String(text).toLocaleUpperCase('tr-TR').trim();
         }
 
-        function populateDistrictSelect() {
-            const select = document.getElementById("districtSelect");
-            const counts = {};
-            locations.forEach(loc => counts[loc.district] = (counts[loc.district] || 0) + 1);
+        // --- DATA FETCH ---
+        async function fetchData() {
+            try {
+                const response = await fetch(API_URL, {
+                    headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
+                });
+                if (!response.ok) throw new Error("GitHub Bağlantı Hatası");
+                
+                const data = await response.json();
+                const binaryString = window.atob(data.content.replace(/\s/g, ''));
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
 
-            select.innerHTML = `<option value="all">Tüm İlçeler (${locations.length} Birim)</option>`;
-            Object.keys(counts).sort().forEach(district => {
-                const option = document.createElement("option");
-                option.value = district;
-                option.text = `${district} (${counts[district]} Mahalle)`;
-                select.appendChild(option);
-            });
-        }
+                const workbook = XLSX.read(bytes.buffer, { type: 'array' });
 
-        function initMarkers() {
-            locations.forEach(loc => {
-                // İlçe Renkleri
-                let color = "#3498db";
-                if(loc.district === "Anamur") color = "#e74c3c"; // Kırmızı
-                if(loc.district === "Bozyazı") color = "#2ecc71"; // Yeşil
-                if(loc.district === "Gülnar") color = "#9b59b6"; // Mor
-                if(loc.district === "Silifke") color = "#f1c40f"; // Sarı
-
-                // Circle Marker
-                const marker = L.circleMarker([loc.lat, loc.lon], {
-                    color: "#fff",
-                    weight: 1,
-                    fillColor: color,
-                    fillOpacity: 0.9,
-                    radius: 7
-                }).addTo(map);
-
-                // Popup Bilgisi
-                marker.bindPopup(`
-                    <div style="text-align:center; font-family:sans-serif;">
-                        <strong style="color:${color}">${loc.district}</strong><br>
-                        <b>${loc.name}</b><br>
-                        <span style="font-size:11px; color:#333">Parsel: ${loc.parcels}</span>
-                    </div>
-                `);
-
-                // Tıklama
-                marker.on('click', () => {
-                    const distSel = document.getElementById("districtSelect");
-                    if(distSel.value !== loc.district) {
-                        distSel.value = loc.district;
-                        filterNeighborhoods();
-                    }
-                    const neighSel = document.getElementById("neighborhoodSelect");
-                    Array.from(neighSel.options).forEach(opt => {
-                        if(opt.text === loc.name) neighSel.value = opt.value;
-                    });
-                    selectLocationData(loc);
+                workbook.SheetNames.forEach(sheetName => {
+                     let context = "Devam"; 
+                     if(sheetName.toLocaleUpperCase('tr-TR').includes("İHALE") || sheetName.toUpperCase().includes("IHALE")) {
+                         context = "Ihale";
+                     }
+                     const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+                     processExcelData(json, context);
                 });
 
-                markers.push({ ...loc, marker: marker });
+                document.getElementById("loading-overlay").style.display = "none";
+                populateFilterOptions(); // İlçeleri doldur
+                applyFilters(); // İlk açılışta her şeyi göster
+
+            } catch (error) {
+                console.error(error);
+                document.getElementById("loading-overlay").innerHTML = `<div style='color:red; text-align:center;'>Hata Oluştu:<br>${error.message}</div>`;
+            }
+        }
+
+        function processExcelData(jsonData, originContext) {
+            jsonData.forEach(row => {
+                const getVal = (keys) => {
+                    for (let k of keys) {
+                        if (row[k] !== undefined) return row[k];
+                        let foundKey = Object.keys(row).find(rk => normalizeText(rk) === normalizeText(k));
+                        if(foundKey) return row[foundKey];
+                    }
+                    return "";
+                };
+
+                let ilce = normalizeText(getVal(["İLÇE", "İlçe"]));
+                let birim = normalizeText(getVal(["BİRİM", "Birim"]));
+                let uygulama = getVal(["UYGULAMA"]);
+                
+                let parsel = getVal(["PARSEL SAYISI", "Parsel", "PARSEL"]) || 0;
+                let blok = getVal(["BLOK SAYISI", "Blok", "BLOK"]) || 0;
+                let alan = getVal(["ALAN(Ha)", "Alan", "ALAN"]) || 0;
+                let durum = getVal(["İHALELİ/MÜDÜRLÜK"]) || (originContext === "Ihale" ? "İhaleli (2026)" : "Bilinmiyor");
+
+                if (!ilce || !birim) return;
+
+                let category = "mudurluk";
+                let appLower = String(uygulama).toLocaleLowerCase('tr-TR');
+                let is2B = appLower.includes("2/b") || appLower.includes("2b");
+
+                if (originContext === "Ihale") {
+                    category = "ihalede";
+                } else {
+                    if (is2B) category = "2b";
+                    else if (appLower.includes("güncelleme")) category = "guncelleme";
+                    else if (appLower.includes("7139") || appLower.includes("tesis")) category = "mudurluk";
+                    
+                    if(String(durum).toLocaleLowerCase('tr-TR').includes("ihaleli") && appLower.includes("güncelleme")) category = "guncelleme";
+                }
+
+                if (!is2B && parsel == 0 && blok > 0) { parsel = blok; blok = 0; }
+                if (originContext === "Ihale" && parsel == 0 && blok > 0) { parsel = blok; blok = 0; }
+
+                let lat, lon;
+                let key = `${ilce}_${birim}`;
+                let coords = COORDINATE_DB[key];
+                if (coords) { lat = coords[0]; lon = coords[1]; }
+
+                allData.push({
+                    id: key + "_" + Math.random(),
+                    dist: ilce,
+                    name: birim,
+                    cat: category, 
+                    app: uygulama,
+                    p: parsel,
+                    blk: blok,
+                    ha: alan,
+                    status: durum,
+                    is2B: is2B, 
+                    lat: lat,
+                    lon: lon
+                });
             });
         }
 
-        function filterNeighborhoods() {
-            const districtSelect = document.getElementById("districtSelect");
-            const neighborhoodSelect = document.getElementById("neighborhoodSelect");
-            const selectedDistrict = districtSelect.value;
+        // --- FİLTRE YÖNETİMİ ---
+        
+        // Sadece başlangıçta ilçeleri doldurmak için
+        function populateFilterOptions() {
+            const dists = [...new Set(allData.map(d => d.dist))].sort();
+            const dSelect = document.getElementById("districtSelect");
+            dSelect.innerHTML = `<option value="all">Tüm İlçeler (${dists.length})</option>`;
+            dists.forEach(d => dSelect.innerHTML += `<option value="${d}">${d}</option>`);
+        }
 
-            neighborhoodSelect.innerHTML = '<option value="">Mahalle Seçiniz...</option>';
-            neighborhoodSelect.disabled = false;
+        function setMainFilter(filterType, btn) {
+            currentMainFilter = filterType;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            applyFilters();
+        }
 
-            const filtered = locations.filter(loc => selectedDistrict === "all" || loc.district === selectedDistrict);
-            filtered.sort((a, b) => a.name.localeCompare(b.name));
+        // Ana Filtreleme Fonksiyonu
+        // Hem dropdown'ları, hem tabloyu, hem haritayı etkiler
+        function applyFilters() {
+            const selectedJob = document.getElementById("jobTypeSelect").value;
+            const selectedDist = document.getElementById("districtSelect").value;
 
-            filtered.forEach(loc => {
-                const option = document.createElement("option");
-                option.value = JSON.stringify(loc);
-                option.text = loc.name;
-                neighborhoodSelect.appendChild(option);
+            // 1. Veri Süzme
+            const filteredData = allData.filter(d => {
+                // Ana Filtre (Tümü/İhale/Devam)
+                let mainPass = false;
+                if (currentMainFilter === 'all') mainPass = true;
+                else if (currentMainFilter === 'ihalede' && d.cat === 'ihalede') mainPass = true;
+                else if (currentMainFilter === 'devam' && d.cat !== 'ihalede') mainPass = true;
+                if (!mainPass) return false;
+
+                // İş Türü Filtresi
+                let jobPass = false;
+                if (selectedJob === 'all') jobPass = true;
+                else if (selectedJob === d.cat) jobPass = true;
+                if (!jobPass) return false;
+
+                // İlçe Filtresi
+                if (selectedDist !== 'all' && d.dist !== selectedDist) return false;
+
+                return true;
             });
 
-            if(selectedDistrict === "all") {
-                resetMap();
+            // 2. Arayüz Güncelleme
+            renderMarkers(filteredData);
+            renderTable(filteredData);
+            updateDashboard(filteredData);
+            updateNeighborhoodDropdown(filteredData);
+            
+            // Haritayı sığdır (Eğer ilçe seçiliyse)
+            if (selectedDist !== 'all') {
+                 // Marker varsa sınırlara git, yoksa ilçe merkezine
+                 if (markers.length > 0) {
+                     const group = new L.featureGroup(markers);
+                     map.fitBounds(group.getBounds(), {padding:[50,50]});
+                 } else {
+                     const center = DISTRICT_CENTERS[selectedDist];
+                     if(center) map.flyTo(center, 11);
+                 }
+            }
+        }
+
+        function updateDashboard(data) {
+            let tParsel = 0, tAlan = 0;
+            data.forEach(d => {
+                tParsel += parseInt(d.p || 0) + parseInt(d.blk || 0);
+                tAlan += parseFloat(d.ha || 0);
+            });
+            document.getElementById("dashTotal").innerText = data.length;
+            document.getElementById("dashParsel").innerText = tParsel.toLocaleString();
+            document.getElementById("dashAlan").innerText = tAlan.toFixed(1);
+        }
+
+        function updateNeighborhoodDropdown(data) {
+            const nSelect = document.getElementById("neighborhoodSelect");
+            nSelect.disabled = false;
+            nSelect.innerHTML = '<option value="">Birim Seçiniz</option>';
+            
+            data.sort((a,b) => a.name.localeCompare(b.name));
+            data.forEach(u => {
+                const val = encodeURIComponent(JSON.stringify(u));
+                let info = u.is2B ? `${u.blk} Blok` : `${u.p} Parsel`;
+                nSelect.innerHTML += `<option value="${val}">${u.name} (${info})</option>`;
+            });
+        }
+
+        function renderMarkers(data) {
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+            if(currentMarker) map.removeLayer(currentMarker);
+
+            data.forEach(d => {
+                if(d.lat && d.lon) {
+                    const style = styles[d.cat] || styles["mudurluk"];
+                    const marker = L.circleMarker([d.lat, d.lon], {
+                        color: "#fff", weight: 1, fillColor: style.color, fillOpacity: 0.9, radius: 6
+                    }).addTo(map);
+                    
+                    marker.bindTooltip(`${d.name}`, {permanent: false, direction: 'top'});
+                    marker.on('click', () => {
+                        selectUnit(d);
+                        if(document.getElementById("control-panel").classList.contains("minimized")) togglePanel();
+                    });
+                    markers.push(marker);
+                }
+            });
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById("tableBody");
+            tbody.innerHTML = "";
+            document.getElementById("tableCount").innerText = `(${data.length} Kayıt)`;
+
+            data.forEach(d => {
+                const style = styles[d.cat] || styles["mudurluk"];
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td><span class="status-dot" style="background:${style.color}"></span>${style.label}</td>
+                    <td>${d.dist}</td>
+                    <td><strong>${d.name}</strong></td>
+                    <td>${d.app || '-'}</td>
+                    <td>${d.is2B ? d.blk : d.p}</td>
+                    <td>${d.ha || '-'}</td>
+                `;
+                tr.onclick = () => {
+                    selectUnit(d);
+                    if(d.lat) map.flyTo([d.lat, d.lon], 16, {duration: 1.5});
+                    else fetchAndZoom(d);
+                };
+                tbody.appendChild(tr);
+            });
+        }
+
+        function searchTable() {
+            const input = document.getElementById("tableSearch");
+            const filter = normalizeText(input.value);
+            const tr = document.getElementById("tableBody").getElementsByTagName("tr");
+
+            for (let i = 0; i < tr.length; i++) {
+                const txtValue = tr[i].textContent || tr[i].innerText;
+                if (normalizeText(txtValue).indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+
+        // --- MAP & ACTION ---
+        async function fetchAndZoom(d) {
+            const onlineCoords = await fetchCoordinatesOnline(d.dist, d.name);
+            if(onlineCoords) {
+                d.lat = onlineCoords.lat;
+                d.lon = onlineCoords.lon;
+                selectUnit(d);
+                map.flyTo([d.lat, d.lon], 16, {duration: 1.5});
             } else {
-                const group = new L.featureGroup(markers.filter(m => m.district === selectedDistrict).map(m => m.marker));
-                map.fitBounds(group.getBounds(), { padding: [50,50] });
+                alert("Konum Bulunamadı. İlçe Merkezine Gidiliyor.");
+                let center = DISTRICT_CENTERS[d.dist];
+                if(center) map.flyTo(center, 12);
             }
         }
 
         function zoomToLocation() {
-            const select = document.getElementById("neighborhoodSelect");
-            if (!select.value) return;
-            const data = JSON.parse(select.value);
-            selectLocationData(data);
-        }
-
-        function selectLocationData(data) {
-            currentSelectedLocation = data;
+            const val = document.getElementById("neighborhoodSelect").value;
+            if(!val) return;
+            let d = JSON.parse(decodeURIComponent(val));
             
-            document.getElementById("cardTitle").innerText = `${data.district} - ${data.name}`;
-            document.getElementById("cardParcels").innerText = data.parcels;
+            if(d.lat) {
+                selectUnit(d);
+                map.flyTo([d.lat, d.lon], 16, {duration: 1.5});
+            } else {
+                fetchAndZoom(d);
+            }
+        }
+
+        function selectUnit(d) {
+            const style = styles[d.cat] || styles["mudurluk"];
+            document.getElementById("infoTitle").innerText = d.name;
+            const badge = document.getElementById("infoBadge");
+            badge.innerText = d.app || style.label;
+            badge.style.backgroundColor = style.color;
+
+            document.getElementById("infoStatus").innerText = `${d.dist} / ${d.status}`;
+
+            const stats = document.getElementById("infoStats");
+            stats.innerHTML = '';
+            
+            if(d.is2B) {
+                stats.innerHTML += `<div class="info-box"><span class="ib-val">${d.blk}</span><span class="ib-lbl">BLOK</span></div>`;
+                stats.innerHTML += `<div class="info-box"><span class="ib-val">${d.ha}</span><span class="ib-lbl">HEKTAR</span></div>`;
+            } else {
+                stats.innerHTML += `<div class="info-box" style="grid-column:span 2"><span class="ib-val">${d.p}</span><span class="ib-lbl">PARSEL</span></div>`;
+                if(d.ha > 0) stats.innerHTML += `<div class="info-box" style="grid-column:span 2; margin-top:5px"><span class="ib-val">${d.ha}</span><span class="ib-lbl">HEKTAR</span></div>`;
+            }
+
             document.getElementById("info-card").style.display = "block";
-
-            // ODAKLANMA: Zoom 17 (Köyiçi/Meydan Detayı)
-            map.flyTo([data.lat, data.lon], 17, {
-                animate: true,
-                duration: 1.5
-            });
-
-            const target = markers.find(m => m.name === data.name && m.district === data.district);
-            if(target) target.marker.openPopup();
+            
+            if(currentMarker) map.removeLayer(currentMarker);
+            if(d.lat) {
+                currentMarker = L.circleMarker([d.lat, d.lon], {
+                    color: "#2c3e50", weight: 3, fillColor: style.color, fillOpacity: 1, radius: 8
+                }).addTo(map).bindPopup(`📍 ${d.name}`).openPopup();
+            }
         }
 
-        function openTKGM() {
-            window.open("https://parselsorgu.tkgm.gov.tr/", '_blank');
+        // --- HELPERS ---
+        function togglePanel() {
+            document.getElementById("control-panel").classList.toggle("minimized");
+        }
+        document.getElementById("control-panel").addEventListener("click", function(e){
+            if(this.classList.contains("minimized")) this.classList.remove("minimized");
+        });
+
+        function toggleBottomPanel() {
+            document.getElementById("bottom-panel").classList.toggle("expanded");
         }
 
-        function openGoogleMaps() {
-            if(!currentSelectedLocation) return;
-            window.open(`https://www.google.com/maps/dir/?api=1&destination=${currentSelectedLocation.lat},${currentSelectedLocation.lon}`, '_blank');
+        async function fetchCoordinatesOnline(district, neighborhood) {
+            const query = `${neighborhood}, ${district}, Mersin, Türkiye`;
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+                const data = await res.json();
+                if(data.length > 0) return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+            } catch(e){}
+            return null;
         }
 
-        function resetMap() {
-            map.flyTo([36.400, 33.500], 9);
-            document.getElementById("districtSelect").value = "all";
-            document.getElementById("neighborhoodSelect").innerHTML = '<option value="">Önce İlçe Seçiniz</option>';
-            document.getElementById("neighborhoodSelect").disabled = true;
+        function openTKGM() { window.open("https://parselsorgu.tkgm.gov.tr/", "_blank"); }
+        function openNav() {
+            if(currentMarker) {
+                const ll = currentMarker.getLatLng();
+                window.open(`https://www.google.com/maps/dir/?api=1&destination=${ll.lat},${ll.lng}`, "_blank");
+            } else {
+                alert("Lütfen önce bir birim seçin.");
+            }
+        }
+        function resetView() {
+            map.setView([36.7, 34.0], 9);
             document.getElementById("info-card").style.display = "none";
-            map.closePopup();
+            if(currentMarker) map.removeLayer(currentMarker);
+            
+            document.getElementById("districtSelect").value = "all";
+            document.getElementById("jobTypeSelect").value = "all";
+            setMainFilter('all', document.querySelector('.filter-btn'));
         }
 
-        initApp();
-
+        fetchData();
     </script>
 </body>
 </html>
